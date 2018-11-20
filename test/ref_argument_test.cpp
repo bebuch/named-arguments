@@ -49,25 +49,4 @@ namespace{
 	}
 
 
-	struct move_only_arg{
-		move_only_arg(move_only_arg&&) = default;
-	};
-
-	struct not_movable_arg{
-		not_movable_arg(not_movable_arg&&) = delete;
-	};
-
-	void move_only_arg_test(){
-		auto ref_type = test_fn(move_only_arg{});
-		auto test_type = wrap_fn("v"_arg = move_only_arg{});
-		expect_equal(ref_type, test_type);
-	}
-
-	void not_movable_arg_test(){
-		auto ref_type = test_fn(not_movable_arg{});
-		auto test_type = wrap_fn("v"_arg = not_movable_arg{});
-		expect_equal(ref_type, test_type);
-	}
-
-
 }
