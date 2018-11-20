@@ -180,24 +180,55 @@ namespace named_arguments{
 	auto adapt = [](auto& f, auto ... input_arg_spec)->decltype(auto){
 		auto arg_spec = hana::make_tuple(input_arg_spec ...);
 
-		auto all_params_named =
-			hana::all_of(arg_spec, hana::is_a< detail::config_tag >);
+		auto forgot_assign_default_value = hana::any_of(arg_spec,
+			hana::is_a< detail::config_initializer_tag >);
+		static_assert(!forgot_assign_default_value,
+			"you forgot to assign the default value in named_arguments::adapt "
+			"call, use »adapt(f, \"param_name\"_default_arg = "
+			"[]{ return value; })« to assign a value to the named parameter "
+			"param_name");
+
+		auto wrongly_used_call_literals = hana::any_of(arg_spec,
+			[](auto arg){
+				return hana::or_(
+						hana::is_a< detail::call_tag >(arg),
+						hana::is_a< detail::call_initializer_tag >(arg)
+					);
+			});
+		static_assert(!wrongly_used_call_literals,
+			"named_arguments::adapt wrongly called with a call literal "
+			"argument \"param_name\"_arg, use »\"param_name\"_no_default_args« "
+			"or »\"param_name\"_default_arg« instead: use \n»adapt(f, "
+			"\"param_name\"_no_default_arg)«\n or \n»adapt(f, "
+			"\"param_name\"_default_arg = []{ return value; })«\n instead of \n"
+			"»adapt(f, \"param_name\"_arg)«");
+
+		auto all_params_named = hana::all_of(
+			arg_spec, hana::is_a< detail::config_tag >);
 		static_assert(all_params_named,
-			"named_arguments::adopt called with arguments that are neither "
-			"no_default_args nor default_arg, use 'f(\"param_name_1\""
-			"_no_default_arg, \"param_name_2\"_default_arg = "
-			"[]{ return value; } ...)'");
+			"named_arguments::adapt called with arguments that are neither "
+			"»\"param_name\"_no_default_args« nor »\"param_name\"_default_arg«"
+			", use »adapt(f, \"param_name_1\"_no_default_arg, "
+			"\"param_name_2\"_default_arg = []{ return value; } ...)«");
 
 		return [&f, arg_spec](auto ... input_args)->decltype(auto){
 			auto input_tuple = hana::make_tuple(input_args ...);
 
-			auto all_params_named =
-				hana::all_of(input_tuple, hana::is_a< detail::call_tag >);
+			auto forgot_assign_value = hana::any_of(input_tuple,
+				hana::is_a< detail::call_initializer_tag >);
+			static_assert(!forgot_assign_value,
+				"you forgot to assign a value in named_arguments adapted "
+				"function call, use »f(\"param_name\"_arg = value ...)« to "
+				"assign a value to the named parameter param_name");
+
+			auto all_params_named = hana::all_of(
+				input_tuple, hana::is_a< detail::call_tag >);
 			static_assert(all_params_named,
-				"named_arguments adopted function called with not named "
-				"arguments, use 'f(\"param_name\"_arg = value ...)' to map "
+				"named_arguments adapted function called with not named "
+				"arguments, use »f(\"param_name\"_arg = value ...)« to map "
 				"your values to the parameter names specified by "
-				"named_arguments::adopt");
+				"named_arguments::adapt");
+
 
 			auto input_map = hana::to_map(hana::transform(input_tuple,
 				[](auto input_arg){

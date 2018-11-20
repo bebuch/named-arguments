@@ -32,9 +32,10 @@ find_package(Boost REQUIRED)
 # Setup testing
 enable_testing()
 
-set(CMAKE_CXX_STANDARD 20)
+# TODO: Use C++20 for creating compile time string literals instead of GNU
+#       extension
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# TODO: remove when we use C++20 for creating compile time string literals
 set(CMAKE_CXX_EXTENSIONS GNU)
 
 
@@ -47,6 +48,7 @@ add_executable(tests
     ref_argument_test.cpp
     restricted_argument_test.cpp
     target_argument_test.cpp
+    static_assert.cpp
 )
 
 # Link test executable against gtest & gtest_main
