@@ -17,72 +17,71 @@ namespace named_arguments{
 		/// \brief An argument name
 		template < char ... Chars >
 		struct named_param{
-			/// \brief Argument name as hana::string
-			static constexpr auto name = hana::string_c< Chars ... >;
-
 			/// \brief Set parameter value
 			template< typename T >
 			constexpr auto operator=(T&& value){
-				return hana::make_pair(name, static_cast< T&& >(value));
+				constexpr auto name = hana::string_c< Chars ... >;
+				return hana::make_pair(name, [&value]()->T&&{
+						return static_cast< T&& >(value);
+					});
 			}
 		};
 
+		/// \brief An argument name
+		template < char ... Chars >
+		struct named_param_no_default{
+			/// \brief Argument name as hana::string
+			static constexpr auto name = hana::string_c< Chars ... >;
+		};
+
 		/// \brief An argument name with default value
-		template < typename T, char ... Chars >
-		class named_default_param{
+		template < typename Fn, char ... Chars >
+		class named_param_default{
 		public:
 			/// \brief Argument name as hana::string
 			static constexpr auto name = hana::string_c< Chars ... >;
 
-
-			static_assert(!std::is_reference_v< T >,
-				"default value must not be a reference");
+			/// \brief Type of the default parameter
+			using type = std::invoke_result_t< Fn const >;
 
 
 			/// \brief Move constructor
-			named_default_param(T&& default_value)
-				: default_value_(std::move(default_value)) {}
+			named_param_default(Fn&& fn)
+				: fn_(std::move(fn)) {}
 
 			/// \brief Copy constructor
-			named_default_param(T const& default_value)
-				: default_value_(default_value) {}
+			named_param_default(Fn const& fn)
+				: fn_(fn) {}
 
 
 			/// \brief Getter function
-			T default_value()const{
-				return default_value_;
+			Fn const& default_value()const{
+				return fn_;
 			}
 
 
 		private:
 			/// \brief The default value
-			T default_value_;
+			Fn fn_;
 		};
 
 
 		/// \brief An argument name with default value
 		template < char ... Chars >
-		struct named_default_param_creator{
-			/// \brief Argument name as hana::string
-			static constexpr auto name = hana::string_c< Chars ... >;
-
+		struct named_param_default_initializer{
 			/// \brief Set a default value
-			template< typename T >
-			constexpr auto operator=(T&& value){
-				return named_default_param< std::remove_cv_t<
-					std::remove_reference_t< T > >, Chars ... >(
-						static_cast< T&& >(value));
+			template< typename Fn >
+			constexpr auto operator=(Fn&& fn){
+				return named_param_default< Fn, Chars ... >(
+					static_cast< Fn&& >(fn));
 			}
 		};
 
 		/// \brief Get argument names as hana::string from specification
-		constexpr auto extract = [](auto const& arg_spec, auto&& args){
-			return hana::transform(arg_spec, [&args](auto const& key)->decltype(auto){
-				if constexpr(auto v = hana::contains(
-					static_cast< decltype(args)&& >(args), key.name);
-					v
-				){
-					return std::move(args[key.name]);
+		auto extract = [](auto arg_spec, auto args){
+			return hana::transform(arg_spec, [&args](auto key){
+				if constexpr(auto v = hana::contains(args, key.name); v){
+					return args[key.name];
 				}else{
 					return key.default_value();
 				}
@@ -96,8 +95,8 @@ namespace named_arguments{
 	namespace literals{
 
 
-		// TODO: replace GNU extention by C++20 version when it is implemented in
-		//       GCC and clang
+		// TODO: replace GNU extention by C++20 version when it is implemented
+		//       in GCC and clang
 		/// \brief The named parameter in a call
 		template < typename CharT, CharT ... Chars >
 		constexpr auto operator""_arg() ->
@@ -105,12 +104,21 @@ namespace named_arguments{
 			return {};
 		}
 
-		// TODO: replace GNU extention by C++20 version when it is implemented in
-		//       GCC and clang
+		// TODO: replace GNU extention by C++20 version when it is implemented
+		//       in GCC and clang
 		/// \brief The named parameter with default value
 		template < typename CharT, CharT ... Chars >
-		constexpr auto operator""_defaultarg()
-		-> detail::named_default_param_creator< Chars ... >{
+		constexpr auto operator""_no_default_arg()
+		-> detail::named_param_no_default< Chars ... >{
+			return {};
+		}
+
+		// TODO: replace GNU extention by C++20 version when it is implemented
+		//       in GCC and clang
+		/// \brief The named parameter with default value
+		template < typename CharT, CharT ... Chars >
+		constexpr auto operator""_default_arg()
+		-> detail::named_param_default_initializer< Chars ... >{
 			return {};
 		}
 
@@ -119,15 +127,17 @@ namespace named_arguments{
 
 
 	/// \brief Wrap a function call into an named callable object
-	constexpr auto adapt = [](auto& f, auto ... input_arg_spec){
+	auto adapt = [](auto& f, auto ... input_arg_spec)->decltype(auto){
 		auto arg_spec = hana::make_tuple(input_arg_spec ...);
-		return [&f, &arg_spec](auto&& ... input_args){
-			auto args = hana::make_map(
-				static_cast< decltype(input_args)&& >(input_args) ...);
-
-			auto arg_pack = detail::extract(arg_spec, std::move(args));
-
-			return hana::unpack(std::move(arg_pack), f);
+		return [&f, arg_spec](auto ... input_args)->decltype(auto){
+			auto args = hana::make_map(input_args ...);
+			auto arg_pack = detail::extract(arg_spec, args);
+			return hana::unpack(arg_pack,
+				[&f](auto ... param)->decltype(auto){
+					return f(static_cast<
+						std::invoke_result_t< decltype(param) > >(
+							param()) ...);
+				});
 		};
 	};
 

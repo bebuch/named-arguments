@@ -41,18 +41,15 @@ set(CMAKE_CXX_EXTENSIONS GNU)
 # Add test cpp file
 include_directories("../include")
 
-add_executable(simple_wrap
+add_executable(tests
     simple_wrap.cpp
-)
-
-add_executable(argument_test
     argument_test.cpp
 )
 
 # Link test executable against gtest & gtest_main
-target_link_libraries(simple_wrap gtest_main)
+target_link_libraries(tests gtest_main)
 
 add_test(
-    NAME simple_wrap
-    COMMAND simple_wrap
+    NAME tests
+    COMMAND tests
 )
