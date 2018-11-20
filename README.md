@@ -4,7 +4,8 @@ A C++17 (with GNU extensions) header-only named arguments library based on an id
 
 https://youtu.be/Grveezn0zhU
 
-Dependencies:
+## Dependencies
+
 - Boost Hana
 
 ## Compiler Support
