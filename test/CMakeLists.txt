@@ -43,7 +43,8 @@ include_directories("../include")
 
 add_executable(tests
     simple_wrap.cpp
-    argument_test.cpp
+    ref_argument_test.cpp
+    restricted_argument_test.cpp
 )
 
 # Link test executable against gtest & gtest_main
