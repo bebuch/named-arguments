@@ -24,33 +24,48 @@ namespace{
 	}
 
 
-	void copy(int v){
+	void ref(int v){
 		auto ref_type = test_fn(v);
 		auto test_type = wrap_fn("v"_arg = v);
 		expect_equal(ref_type, test_type);
 	}
 
-	void ref(int& v){
+	void const_ref(int const v){
 		auto ref_type = test_fn(v);
 		auto test_type = wrap_fn("v"_arg = v);
 		expect_equal(ref_type, test_type);
 	}
 
-	void const_ref(int& v){
-		auto ref_type = test_fn(v);
-		auto test_type = wrap_fn("v"_arg = v);
-		expect_equal(ref_type, test_type);
-	}
-
-	void move_ref(int&& v){
+	void move_ref(int v){
 		auto ref_type = test_fn(std::move(v));
 		auto test_type = wrap_fn("v"_arg = std::move(v));
 		expect_equal(ref_type, test_type);
 	}
 
-	void const_move_ref(int const&& v){
+	void const_move_ref(int const v){
 		auto ref_type = test_fn(std::move(v));
 		auto test_type = wrap_fn("v"_arg = std::move(v));
+		expect_equal(ref_type, test_type);
+	}
+
+
+	struct move_only_arg{
+		move_only_arg(move_only_arg&&) = default;
+	};
+
+	struct not_movable_arg{
+		not_movable_arg(not_movable_arg&&) = delete;
+	};
+
+	void move_only_arg_test(){
+		auto ref_type = test_fn(move_only_arg{});
+		auto test_type = wrap_fn("v"_arg = move_only_arg{});
+		expect_equal(ref_type, test_type);
+	}
+
+	void not_movable_arg_test(){
+		auto ref_type = test_fn(not_movable_arg{});
+		auto test_type = wrap_fn("v"_arg = not_movable_arg{});
 		expect_equal(ref_type, test_type);
 	}
 

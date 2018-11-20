@@ -43,6 +43,7 @@ include_directories("../include")
 
 add_executable(tests
     simple_wrap.cpp
+    return_value.cpp
     ref_argument_test.cpp
     restricted_argument_test.cpp
 )
