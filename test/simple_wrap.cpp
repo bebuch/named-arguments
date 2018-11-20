@@ -3,7 +3,6 @@
 #include "gtest/gtest.h"
 
 #include <string>
-#include <cassert>
 
 
 namespace{

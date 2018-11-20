@@ -46,6 +46,7 @@ add_executable(tests
     return_value.cpp
     ref_argument_test.cpp
     restricted_argument_test.cpp
+    target_argument_test.cpp
 )
 
 # Link test executable against gtest & gtest_main

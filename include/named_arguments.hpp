@@ -14,30 +14,76 @@ namespace named_arguments{
 	namespace detail{
 
 
-		/// \brief An argument name
-		template < char ... Chars >
-		struct named_param{
-			/// \brief Set parameter value
-			template< typename T >
-			constexpr auto operator=(T&& value){
-				constexpr auto name = hana::string_c< Chars ... >;
-				return hana::make_pair(name, [&value]()->T&&{
-						return static_cast< T&& >(value);
-					});
+		struct call_tag;
+		struct call_initializer_tag;
+		struct config_tag;
+		struct config_initializer_tag;
+
+
+		/// \brief An argument name with value
+		template < typename Fn, char ... Chars >
+		class named_param{
+		public:
+			/// \brief Used for hana concepts check
+			using hana_tag = call_tag;
+
+			/// \brief Argument name as hana::string
+			static constexpr auto name = hana::string_c< Chars ... >;
+
+
+			/// \brief Constructor
+			named_param(Fn const& fn)
+				: fn_(fn) {}
+
+
+			/// \brief Getter function
+			Fn const& argument_value_fn()const{
+				return fn_;
 			}
+
+
+		private:
+			/// \brief The argument provider function
+			Fn fn_;
 		};
 
 		/// \brief An argument name
 		template < char ... Chars >
+		struct named_param_initializer{
+			/// \brief Used for hana concepts check
+			using hana_tag = call_initializer_tag;
+
+			/// \brief Set parameter value
+			template< typename T >
+			constexpr auto operator=(T&& value){
+				constexpr auto name = hana::string_c< Chars ... >;
+				auto get_reference_fn = [&value]()->T&&{
+						return static_cast< T&& >(value);
+					};
+				return named_param< decltype(get_reference_fn), Chars ... >(
+					get_reference_fn);
+			}
+		};
+
+
+		/// \brief An argument name
+		template < char ... Chars >
 		struct named_param_no_default{
+			/// \brief Used for hana concepts check
+			using hana_tag = config_tag;
+
 			/// \brief Argument name as hana::string
 			static constexpr auto name = hana::string_c< Chars ... >;
 		};
+
 
 		/// \brief An argument name with default value
 		template < typename Fn, char ... Chars >
 		class named_param_default{
 		public:
+			/// \brief Used for hana concepts check
+			using hana_tag = config_tag;
+
 			/// \brief Argument name as hana::string
 			static constexpr auto name = hana::string_c< Chars ... >;
 
@@ -45,30 +91,32 @@ namespace named_arguments{
 			using type = std::invoke_result_t< Fn const >;
 
 
-			/// \brief Move constructor
+			/// \brief Move in constructor
 			named_param_default(Fn&& fn)
 				: fn_(std::move(fn)) {}
 
-			/// \brief Copy constructor
+			/// \brief Copy in constructor
 			named_param_default(Fn const& fn)
 				: fn_(fn) {}
 
 
 			/// \brief Getter function
-			Fn const& default_value()const{
+			Fn const& default_value_fn()const{
 				return fn_;
 			}
 
 
 		private:
-			/// \brief The default value
+			/// \brief The default value provider function
 			Fn fn_;
 		};
-
 
 		/// \brief An argument name with default value
 		template < char ... Chars >
 		struct named_param_default_initializer{
+			/// \brief Used for hana concepts check
+			using hana_tag = config_initializer_tag;
+
 			/// \brief Set a default value
 			template< typename Fn >
 			constexpr auto operator=(Fn&& fn){
@@ -77,13 +125,14 @@ namespace named_arguments{
 			}
 		};
 
+
 		/// \brief Get argument names as hana::string from specification
 		auto extract = [](auto arg_spec, auto args){
 			return hana::transform(arg_spec, [&args](auto key){
 				if constexpr(auto v = hana::contains(args, key.name); v){
 					return args[key.name];
 				}else{
-					return key.default_value();
+					return key.default_value_fn();
 				}
 			});
 		};
@@ -100,7 +149,7 @@ namespace named_arguments{
 		/// \brief The named parameter in a call
 		template < typename CharT, CharT ... Chars >
 		constexpr auto operator""_arg() ->
-		detail::named_param< Chars ... >{
+		detail::named_param_initializer< Chars ... >{
 			return {};
 		}
 
@@ -127,12 +176,36 @@ namespace named_arguments{
 
 
 	/// \brief Wrap a function call into an named callable object
+	// TODO: owning f
 	auto adapt = [](auto& f, auto ... input_arg_spec)->decltype(auto){
 		auto arg_spec = hana::make_tuple(input_arg_spec ...);
+
+		auto all_params_named =
+			hana::all_of(arg_spec, hana::is_a< detail::config_tag >);
+		static_assert(all_params_named,
+			"named_arguments::adopt called with arguments that are neither "
+			"no_default_args nor default_arg, use 'f(\"param_name_1\""
+			"_no_default_arg, \"param_name_2\"_default_arg = "
+			"[]{ return value; } ...)'");
+
 		return [&f, arg_spec](auto ... input_args)->decltype(auto){
-			auto args = hana::make_map(input_args ...);
-			auto arg_pack = detail::extract(arg_spec, args);
-			return hana::unpack(arg_pack,
+			auto input_tuple = hana::make_tuple(input_args ...);
+
+			auto all_params_named =
+				hana::all_of(input_tuple, hana::is_a< detail::call_tag >);
+			static_assert(all_params_named,
+				"named_arguments adopted function called with not named "
+				"arguments, use 'f(\"param_name\"_arg = value ...)' to map "
+				"your values to the parameter names specified by "
+				"named_arguments::adopt");
+
+			auto input_map = hana::to_map(hana::transform(input_tuple,
+				[](auto input_arg){
+					return hana::make_pair(input_arg.name,
+						input_arg.argument_value_fn());
+				}));
+			auto ordered_input_tuple = detail::extract(arg_spec, input_map);
+			return hana::unpack(ordered_input_tuple,
 				[&f](auto ... param)->decltype(auto){
 					return f(static_cast<
 						std::invoke_result_t< decltype(param) > >(
