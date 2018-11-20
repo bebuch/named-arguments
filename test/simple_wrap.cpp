@@ -9,7 +9,6 @@
 namespace{
 
 
-	using namespace std::literals::string_literals;
 	using namespace named_arguments::literals;
 
 
