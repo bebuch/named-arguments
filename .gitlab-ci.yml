@@ -1,6 +1,6 @@
 # build and test with gcc
 gcc-test:
-  image: tuiqbv/gcc-gtest:latest
+  image: tuiqbv/gcc-boost:latest
   stage: test
   script:
     - script/test.sh
@@ -8,7 +8,7 @@ gcc-test:
 
 # build and test with clang
 llvm-test:
-  image: tuiqbv/clang-gtest:latest
+  image: tuiqbv/clang-boost:latest
   stage: test
   script:
     - script/test.sh
