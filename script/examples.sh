@@ -12,4 +12,4 @@ cmake ..
 make
 
 # Run examples
-./main
+./simple_wrap
