@@ -42,14 +42,7 @@ set(CMAKE_CXX_EXTENSIONS GNU)
 # Add test cpp file
 include_directories("../include")
 
-add_executable(tests
-    simple_wrap.cpp
-    return_value.cpp
-    ref_argument_test.cpp
-    restricted_argument_test.cpp
-    target_argument_test.cpp
-    static_assert.cpp
-)
+add_executable(tests *.cpp)
 
 # Link test executable against gtest & gtest_main
 target_link_libraries(tests gtest_main)
